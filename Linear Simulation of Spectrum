@@ -1,0 +1,93 @@
+
+%% Simulate abs spectra
+% Retrieve spectrum
+close all; clear all; clc;
+fileId = fopen('dataethanol.txt', 'r');
+formatSpec = '%f';
+A = fscanf(fileId,formatSpec);
+B = zeros(length(A)/2,1);
+C = zeros(length(A)-length(B),1);
+j = 1;
+for i=1:2:length(A)
+    B(j) = A(i);
+    C(j) = A(i+1);
+    j = j+1;
+end
+
+
+c = 299792458;
+c = 100*c;
+freqdat = zeros(length(B),2);
+freqdat(:,1) = c*(1./(B.*(10^(-7))));
+freqdat(:,2) = -C.*c./(freqdat(:,1).^2);
+freqdat(:,1) = freqdat(:,1)./c ;          %conversion to wavenumber cm^-1
+normsignal = abs(freqdat(:,2))./max(abs(freqdat(:,2)));
+wavenumber = freqdat(:,1);
+%cut_ind = find((15000<wavenumber) && (wavenumber<25000));
+wavenumber = wavenumber(500:1270);
+normsignal = normsignal(500:1270);
+
+frequency = c.*wavenumber;
+time = 0:1:(length(frequency)-1);
+%dt = 1/(sum(abs(frequency)));
+dt = 1/(frequency(end)-frequency(1));
+time = dt.*time;
+frequency = c.*wavenumber;
+time = 0:1:(length(frequency)-1);
+%dt = 1/(sum(abs(frequency)));
+%dt = 1/(frequency(end)-frequency(1));
+dt = 1e-15;
+%%
+close all;
+n = points(frequency, 10^(-15));
+normsignal_time = abs(ifft(normsignal,n));
+%normsignal_time = normsignal_time(1:floor(n/2));
+time = linspace(0,n,n);
+time = time(1:floor(n/2));
+subplot(2,1,1)
+plot(wavenumber,normsignal) 
+subplot(2,1,2)
+plot(time(1:500), normsignal_time(1:500))
+
+%% Simulating spectra
+ene1 = [20000]; % [cm^{-1}] 
+ene2 = [21500];
+dipo = [1];
+rates = [0];
+ne = 1;
+t_ls = 0:0.25:8000;
+
+% lineshape
+gamma1 = 300; % cm^{-1}
+delta1 = 300; % cm^{-1}
+g1 = lineshape_simple(t_ls,gamma1,delta1);
+
+gamma2 = 400; % cm^{-1}
+delta2 = 300; % cm^{-1}
+g2 = lineshape_simple(t_ls,gamma2,delta2);
+
+
+dt=1;
+f=17000:10:24000;
+linear1 = linear_response(f, dt, ene1, dipo, g1, ne);
+linear2 = linear_response(f, dt, ene2, dipo, g2, ne);
+plot(linear1.f,9.8*linear1.x+1.8*linear2.x)
+hold on
+plot(wavenumber,10*normsignal) 
+
+%% Plot
+subplot(3,1,1)
+plot(linear1.f,10*linear1.x+2*linear2.x)
+% plot(linear1.f,linear1.x)
+% hold on
+% %plot(linear2.f,linear2.x)
+subplot(3,1,2) 
+plot(g1.t(1:1000), exp(-g1.x(:,1:1000)))
+hold on
+plot(g2.t(1:1000), exp(-g2.x(:,1:1000)))
+subplot(3,1,3)
+%plot(exp(1i*ene*2*pi*299792458*g.t(1:100)).*exp(-g.t(1:100)), g.x(:,1:100))
+plot(g1.t(1:1000), exp(1i*ene1*2*pi*299792458*g1.x(:,1:1000)).*exp(-g1.x(:,1:1000))+exp(1i*ene2*2*pi*299792458*g2.x(:,1:1000)).*exp(-g2.x(:,1:1000)))
+hold on
+%plot(g2.t(1:1000), exp(1i*ene2*2*pi*299792458*g2.x(:,1:1000)).*exp(-g2.x(:,1:1000)))
+
